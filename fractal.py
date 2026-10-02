@@ -20,8 +20,26 @@ def collingwood_escape(cx, cy, max_iter):
     for i in range(max_iter):
         ax = abs(x)
         ay = abs(y)
-        x_new = abs(ax * ax - ay * ay) + cx
-        y_new = abs(2.0 * ax * ay) + cy
+        x_new = ax * ax - ay * ay + cx
+        y_new = 2.0 * ax * ay + cy
+        x, y = x_new, y_new
+        if x * x + y * y > ESCAPE_RADIUS * ESCAPE_RADIUS:
+            abs_z = math.sqrt(x * x + y * y)
+            if abs_z > 1.0 and math.isfinite(abs_z):
+                smooth = i + 1.0 - math.log2(math.log2(abs_z))
+                return i, smooth
+            return i, float(i)
+    return max_iter, float(max_iter)
+
+
+def burning_ship_escape(cx, cy, max_iter):
+    x = 0.0
+    y = 0.0
+    for i in range(max_iter):
+        ax = abs(x)
+        ay = abs(y)
+        x_new = ax * ax - ay * ay + cx
+        y_new = 2.0 * ax * ay + cy
         x, y = x_new, y_new
         if x * x + y * y > ESCAPE_RADIUS * ESCAPE_RADIUS:
             abs_z = math.sqrt(x * x + y * y)
@@ -52,8 +70,8 @@ def build_fractal_image(width, height, center_x, center_y, scale, max_iter, pale
             break
         ax = np.abs(x[active])
         ay = np.abs(y[active])
-        x_new = np.abs(ax * ax - ay * ay) + grid_x[active]
-        y_new = np.abs(2.0 * ax * ay) + grid_y[active]
+        x_new = ax * ax - ay * ay + grid_x[active]
+        y_new = 2.0 * ax * ay + grid_y[active]
         x[active] = x_new
         y[active] = y_new
 
@@ -66,7 +84,7 @@ def build_fractal_image(width, height, center_x, center_y, scale, max_iter, pale
             active[escaped] = False
 
     rgb = np.zeros((height, width, 3), dtype=np.uint8)
-    rgb[escape_counts == max_iter] = (0, 0, 0)
+    rgb[escape_counts == max_iter] = (172, 206, 224)
 
     escaped_idx = escape_counts < max_iter
     if np.any(escaped_idx):
