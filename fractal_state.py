@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE, HEIGHT, WIDTH
-from palette import Palette
+from .config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE, HEIGHT, WIDTH
+from .palette import Palette
 
 
 @dataclass
@@ -12,7 +12,7 @@ class FractalState:
     center_y: float = DEFAULT_CENTER[1]
     scale: float = DEFAULT_SCALE
     max_iter: int = DEFAULT_ITERATIONS
-    palette: Palette = field(default_factory=lambda: Palette("Inferno"))
+    palette: Palette = field(default_factory=lambda: Palette("Night"))
     render_width: int = WIDTH
     render_height: int = HEIGHT
 
@@ -21,5 +21,5 @@ class FractalState:
         self.scale = DEFAULT_SCALE
 
     def clamp_iterations(self):
-        self.max_iter = max(20, min(250, self.max_iter))
+        self.max_iter = max(50, min(2000, self.max_iter))
         return self.max_iter

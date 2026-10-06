@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 # Точка входа: запускает окно приложения и аргументы командной строки.
 import argparse
+import os
 import sys
-import tkinter as tk
 
-from app import FractalApp
-from config import DEFAULT_ITERATIONS
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from laba3grafica.app import CollingwoodFractalApp
+    from laba3grafica.config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE
+    from laba3grafica.fractal import build_fractal_image
+    from laba3grafica.palette import Palette
+else:
+    from .app import CollingwoodFractalApp
+    from .config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE
+    from .fractal import build_fractal_image
+    from .palette import Palette
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Алгебраический фрактал: Коллингвуд")
+    parser = argparse.ArgumentParser(description="Фрактал Коллингвуда")
     parser.add_argument("--iterations", type=int, default=DEFAULT_ITERATIONS, help="Максимальное число итераций")
     parser.add_argument("--headless", action="store_true", help="Запуск без графического окна для проверки")
     return parser.parse_args()
@@ -17,21 +26,25 @@ def parse_args():
 
 def main():
     args = parse_args()
-    root = tk.Tk()
+
     if args.headless:
-        root.withdraw()
-        app = FractalApp(root, args.iterations)
-        app.render()
-        root.update()
-        print(
-            f"Headless render completed: center=({app.center_x:.5f}, {app.center_y:.5f}), "
-            f"scale={app.scale:.5f}, iterations={app.max_iter}"
+        image = build_fractal_image(
+            480,
+            360,
+            DEFAULT_CENTER[0],
+            DEFAULT_CENTER[1],
+            DEFAULT_SCALE,
+            args.iterations,
+            Palette("Night"),
         )
-        root.destroy()
+        print(
+            f"Headless render completed: center=({DEFAULT_CENTER[0]:.5f}, {DEFAULT_CENTER[1]:.5f}), "
+            f"scale={DEFAULT_SCALE:.5f}, iterations={args.iterations}, shape={image.shape}"
+        )
         return 0
 
-    app = FractalApp(root, args.iterations)
-    root.mainloop()
+    app = CollingwoodFractalApp(max_iter=args.iterations)
+    app.run()
     return 0
 
 

@@ -1,129 +1,82 @@
-# GUI-модуль: создаёт окно, canvas, HUD и обработчики ввода.
-import tkinter as tk
-from tkinter import ttk
+import math
 
-from config import DEFAULT_CENTER, DEFAULT_SCALE, HEIGHT, WIDTH
-from fractal import build_fractal_image, screen_to_complex
-from palette import Palette
+import numpy as np
+import pygame
+
+if __package__ in (None, ""):
+    import os
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from laba3grafica.config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE, HEIGHT, WIDTH
+    from laba3grafica.fractal import build_fractal_image, screen_to_complex
+    from laba3grafica.palette import Palette
+else:
+    from .config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE, HEIGHT, WIDTH
+    from .fractal import build_fractal_image, screen_to_complex
+    from .palette import Palette
 
 
-class FractalApp:
-    def __init__(self, root, max_iter):
-        self.root = root
-        self.width = WIDTH
-        self.height = HEIGHT
+class CollingwoodFractalApp:
+    def __init__(self, width=WIDTH, height=HEIGHT, max_iter=DEFAULT_ITERATIONS):
+        pygame.init()
+
+        self.width = width
+        self.height = height
+        self.hud_height = 110
         self.center_x, self.center_y = DEFAULT_CENTER
         self.scale = DEFAULT_SCALE
         self.max_iter = max_iter
         self.palette = Palette("Night")
-        self.status_var = tk.StringVar()
-        self.iteration_var = tk.IntVar(value=self.max_iter)
-        self.render_width = 500
-        self.render_height = 400
+        self.render_width = 440
+        self.render_height = 300
+        self.running = True
+        self._needs_render = True
+        self.font = pygame.font.SysFont(None, 28)
+        self.small_font = pygame.font.SysFont(None, 22)
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("Collingwood Fractal")
 
-        self.root.title("Коллингвуд / Перпендикулярный Горящий Корабль")
-        self.root.geometry(f"{self.width}x{self.height + 170}")
-        self.root.resizable(False, False)
+    def request_render(self):
+        self._needs_render = True
 
-        self.control_frame = ttk.LabelFrame(root, text="Управление", padding=(10, 8))
-        self.control_frame.pack(fill="x", padx=10, pady=(8, 0))
+    def reset(self):
+        self.center_x, self.center_y = DEFAULT_CENTER
+        self.scale = DEFAULT_SCALE
+        self.max_iter = DEFAULT_ITERATIONS
+        self.request_render()
 
-        self.help_label = ttk.Label(
-            self.control_frame,
-            text="ЛКМ — увеличить | Скролл — масштаб | R — сброс | +/- — итерации | Q — выход",
-            justify="left",
-            wraplength=980,
-        )
-        self.help_label.pack(anchor="w")
+    def update_zoom_label(self):
+        zoom = DEFAULT_SCALE / self.scale
+        return f"Zoom: {zoom:.2f}x"
 
-        self.options_row = ttk.Frame(self.control_frame)
-        self.options_row.pack(anchor="w", pady=(8, 0))
+    def draw_hud(self):
+        hud = pygame.Surface((self.width, self.hud_height), pygame.SRCALPHA)
+        hud.fill((18, 18, 22, 220))
+        pygame.draw.rect(hud, (70, 70, 90), (0, 0, self.width, self.hud_height), 2)
 
-        ttk.Label(self.options_row, text="Цвет: ").pack(side="left")
-        self.palette_var = tk.StringVar(value=self.palette.name)
-        self.palette_combo = ttk.Combobox(
-            self.options_row,
-            textvariable=self.palette_var,
-            values=list(Palette.PRESETS.keys()),
-            state="readonly",
-            width=18,
-        )
-        self.palette_combo.pack(side="left", padx=(0, 8))
-        self.palette_combo.bind("<<ComboboxSelected>>", self.on_palette_change)
+        title = self.font.render("Collingwood Fractal", True, (255, 255, 255))
+        hud.blit(title, (20, 16))
 
-        ttk.Label(self.options_row, text="Итерации: ").pack(side="left")
-        self.iteration_scale = ttk.Scale(
-            self.options_row,
-            from_=20,
-            to=250,
-            orient="horizontal",
-            variable=self.iteration_var,
-            command=self.on_iteration_change,
-            length=220,
-        )
-        self.iteration_scale.pack(side="left", padx=(0, 6))
+        info = [
+            self.update_zoom_label(),
+            f"Center: ({self.center_x:.5f}, {self.center_y:.5f})",
+            f"Iterations: {self.max_iter}",
+        ]
 
-        self.iteration_entry = ttk.Entry(self.options_row, textvariable=self.iteration_var, width=6)
-        self.iteration_entry.pack(side="left")
-        self.iteration_entry.bind("<Return>", self.on_iteration_enter)
+        for idx, text in enumerate(info):
+            label = self.small_font.render(text, True, (220, 220, 220))
+            hud.blit(label, (20, 48 + idx * 22))
 
-        self.status = ttk.Label(
-            self.control_frame,
-            textvariable=self.status_var,
-            background="#171b2b",
-            foreground="white",
-            anchor="w",
-            padding=(8, 4),
-            justify="left",
-        )
-        self.status.pack(fill="x", pady=(8, 0))
+        controls = self.small_font.render("LMB: zoom in  |  RMB: zoom out  |  R: reset  |  +/-: iterations  |  ESC: exit", True, (180, 220, 255))
+        hud.blit(controls, (20, 88))
 
-        self.canvas = tk.Canvas(root, width=self.width, height=self.height, bg="black", highlightthickness=0)
-        self.photo = tk.PhotoImage(width=self.render_width, height=self.render_height)
-        self.image_id = self.canvas.create_image(0, 0, image=self.photo, anchor="nw")
-        self.canvas.pack(fill="both", padx=10, pady=10)
-
-        self.canvas.bind("<Button-1>", self.on_click)
-        self.canvas.bind("<MouseWheel>", self.on_scroll)
-        self.canvas.bind("<Button-4>", self.on_scroll)
-        self.canvas.bind("<Button-5>", self.on_scroll)
-        self.root.bind("<KeyPress>", self.on_key)
-        self.root.protocol("WM_DELETE_WINDOW", self.close)
-        self.render()
-
-    @property
-    def default_scale(self):
-        return DEFAULT_SCALE
-
-    def update_status(self):
-        zoom_value = self.default_scale / self.scale
-        self.status_var.set(
-            f"Zoom: {zoom_value:.2f}x | "
-            f"Center: ({self.center_x:.5f}, {self.center_y:.5f}) | "
-            f"Iterations: {self.max_iter} | "
-            f"Palette: {self.palette.name} | "
-            f"R reset | +/- adjust"
-        )
-
-    def on_palette_change(self, event=None):
-        self.palette.set_palette(self.palette_var.get())
-        self.render()
-
-    def on_iteration_change(self, value=None):
-        try:
-            self.max_iter = max(20, min(250, int(float(self.iteration_var.get()))))
-            self.iteration_var.set(self.max_iter)
-            self.render()
-        except ValueError:
-            return
-
-    def on_iteration_enter(self, event=None):
-        self.on_iteration_change()
+        self.screen.blit(hud, (0, 0))
 
     def render(self):
-        self.max_iter = max(20, min(250, int(self.max_iter)))
-        self.iteration_var.set(self.max_iter)
-        rgb = build_fractal_image(
+        if not self._needs_render:
+            return
+
+        fractal = build_fractal_image(
             self.render_width,
             self.render_height,
             self.center_x,
@@ -132,64 +85,71 @@ class FractalApp:
             self.max_iter,
             self.palette,
         )
+        surf = pygame.surfarray.make_surface(fractal)
+        scaled = pygame.transform.smoothscale(surf, (self.width, self.height - self.hud_height))
 
-        colors = [
-            "#{:02x}{:02x}{:02x}".format(int(r), int(g), int(b))
-            for r, g, b in rgb.reshape(-1, 3)
-        ]
-        self.photo = tk.PhotoImage(width=self.render_width, height=self.render_height)
-        self.photo.put(colors, to=(0, 0))
-        self.photo = self.photo.zoom(2, 2)
-        self.canvas.itemconfig(self.image_id, image=self.photo)
-        self.update_status()
-        self.root.update_idletasks()
-
-    def reset(self):
-        self.center_x, self.center_y = DEFAULT_CENTER
-        self.scale = DEFAULT_SCALE
-        self.render()
+        self.screen.fill((0, 0, 0))
+        self.screen.blit(scaled, (0, self.hud_height))
+        self.draw_hud()
+        pygame.display.flip()
+        self._needs_render = False
 
     def zoom_at(self, px, py, factor):
-        target_cx, target_cy = screen_to_complex(px, py, self.width, self.height, self.center_x, self.center_y, self.scale)
-        self.center_x = target_cx
-        self.center_y = target_cy
+        render_x = px * (self.render_width / self.width)
+        render_y = (py - self.hud_height) * (self.render_height / (self.height - self.hud_height))
+        target_x, target_y = screen_to_complex(render_x, render_y, self.render_width, self.render_height, self.center_x, self.center_y, self.scale)
+        self.center_x = target_x
+        self.center_y = target_y
         self.scale /= factor
-        self.render()
+        self.request_render()
 
     def zoom_out(self, px, py, factor):
-        target_cx, target_cy = screen_to_complex(px, py, self.width, self.height, self.center_x, self.center_y, self.scale)
-        self.center_x = target_cx
-        self.center_y = target_cy
+        render_x = px * (self.render_width / self.width)
+        render_y = (py - self.hud_height) * (self.render_height / (self.height - self.hud_height))
+        target_x, target_y = screen_to_complex(render_x, render_y, self.render_width, self.render_height, self.center_x, self.center_y, self.scale)
+        self.center_x = target_x
+        self.center_y = target_y
         self.scale *= factor
+        self.request_render()
+
+    def handle_event(self, event):
+        if event.type == pygame.QUIT:
+            self.running = False
+            return
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.running = False
+            elif event.key == pygame.K_r:
+                self.reset()
+                self.request_render()
+            elif event.key in (pygame.K_EQUALS, pygame.K_PLUS):
+                self.max_iter = min(1500, self.max_iter + 50)
+                self.request_render()
+            elif event.key in (pygame.K_MINUS, pygame.K_UNDERSCORE):
+                self.max_iter = max(50, self.max_iter - 50)
+                self.request_render()
+            elif event.key == pygame.K_h:
+                self.palette = Palette("Night")
+                self.request_render()
+            elif event.key == pygame.K_j:
+                self.palette = Palette("Sunset")
+                self.request_render()
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
+            if event.button == 1:
+                self.zoom_at(x, y, 1.8)
+            elif event.button == 3:
+                self.zoom_out(x, y, 1.8)
+
+    def run(self):
         self.render()
+        while self.running:
+            for event in pygame.event.get():
+                self.handle_event(event)
+            if self._needs_render:
+                self.render()
+            pygame.time.delay(33)
 
-    def close(self):
-        self.root.destroy()
-
-    def on_click(self, event):
-        self.zoom_at(event.x, event.y, 1.8)
-
-    def on_scroll(self, event):
-        delta = getattr(event, "delta", 0)
-        if delta > 0 or getattr(event, "num", 0) == 4:
-            self.zoom_at(event.x, event.y, 1.5)
-        else:
-            self.zoom_out(event.x, event.y, 1.5)
-
-    def on_key(self, event):
-        key = (event.keysym or "").lower()
-        if key in {"escape", "q"}:
-            self.close()
-            return
-        if key == "r":
-            self.reset()
-            return
-        if key in {"equal", "plus", "kp_add"}:
-            self.max_iter = max(20, min(250, self.max_iter + 25))
-            self.iteration_var.set(self.max_iter)
-            self.render()
-            return
-        if key in {"minus", "kp_subtract"}:
-            self.max_iter = max(20, min(250, self.max_iter - 25))
-            self.iteration_var.set(self.max_iter)
-            self.render()
+        pygame.quit()
