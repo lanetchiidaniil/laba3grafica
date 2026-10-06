@@ -6,7 +6,7 @@ $$
 z_{n+1} = (|Re(z_n)^2 - Im(z_n)^2| + c_x,\; 2|Re(z_n)Im(z_n)| + c_y)
 $$
 
-Визуализация выполнена с интерактивным масштабированием, HUD, настройкой числа итераций и палитрой.
+Приложение визуализирует фрактал в фиксированном окне, поддерживает интерактивное масштабирование, сброс масштаба, настройку количества итераций и цветную палитру.
 
 ## Что реализовано
 
@@ -26,29 +26,48 @@ $$
 
 ## Запуск
 
-Из корня проекта:
+1. Установите зависимости:
+   ```bash
+   py -m pip install -r requirements.txt
+   ```
 
-```powershell
-cd "C:\Users\User\Desktop\laba3grafica"
-.\.venv\Scripts\Activate.ps1
-python -m laba3grafica.main
-```
+2. Запустите приложение из корня проекта:
+   ```powershell
+   cd "C:\Users\User\Desktop\laba3grafica"
+   .\.venv\Scripts\Activate.ps1
+   python -m laba3grafica.main
+   ```
 
-Для headless-проверки:
+3. Для запуска через стандартный Python:
+   ```bash
+   py main.py
+   ```
 
-```powershell
-cd "C:\Users\User\Desktop\laba3grafica"
-.\.venv\Scripts\python.exe -m laba3grafica.main --headless --iterations 20
-```
+4. Для задания числа итераций до запуска:
+   ```bash
+   py main.py --iterations 220
+   ```
+
+5. Для headless-проверки:
+   ```powershell
+   cd "C:\Users\User\Desktop\laba3grafica"
+   .\.venv\Scripts\python.exe -m laba3grafica.main --headless --iterations 20
+   ```
 
 ## Управление
 
-- ЛКМ — увеличение области вокруг курсора
-- ПКМ — уменьшение масштаба
+- ЛКМ — увеличить область вокруг курсора
+- ПКМ — уменьшить масштаб
+- колесо мыши — приблизить/отдалить
 - R — сброс к исходному виду
-- + / - — изменение числа итераций
-- Esc — выход
+- + / - — изменить число итераций
+- Esc / Q — выход
 
 ## Автор
 
 Даниил — реализация фрактала Коллингвуда (перпендикулярного Burning Ship).
+
+```powershell
+cd "C:\Users\User\Desktop\laba3grafica"
+& "C:\Python314\python.exe" main.py
+```
