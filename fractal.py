@@ -37,9 +37,23 @@ def collingwood_escape(cx, cy, max_iter):
     return max_iter, float(max_iter)
 
 
-def build_fractal_image(width, height, center_x, center_y, scale, max_iter, palette=None):
+def _sample_palette(palette, values):
+    palette_values = np.array(palette.stops, dtype=np.float64)
+    t = np.clip(values, 0.0, 1.0)
+    scaled = t * (len(palette_values) - 1)
+    index = np.floor(scaled).astype(int)
+    fraction = scaled - index
+    idx_next = np.clip(index + 1, 0, len(palette_values) - 1)
+    c1 = palette_values[index]
+    c2 = palette_values[idx_next]
+    return (c1 + (c2 - c1) * fraction[..., None]).astype(np.uint8)
+
+
+def build_fractal_image(width, height, center_x, center_y, scale, max_iter, palette=None, background_palette=None):
     if palette is None:
         palette = Palette("Night")
+    if background_palette is None:
+        background_palette = Palette("Night")
 
     x_scale = scale
     y_scale = scale * (height / width)
@@ -76,18 +90,15 @@ def build_fractal_image(width, height, center_x, center_y, scale, max_iter, pale
             active[escaped] = False
 
     rgb = np.zeros((height, width, 3), dtype=np.uint8)
-    rgb[escape_counts == max_iter] = (0, 0, 0)
+    bg_mask = escape_counts == max_iter
+    if np.any(bg_mask):
+        bg_t = np.linspace(0.0, 1.0, height, dtype=np.float64)[:, None]
+        bg_t = np.broadcast_to(bg_t, (height, width))
+        rgb[bg_mask] = _sample_palette(background_palette, bg_t[bg_mask])
 
     escaped_idx = escape_counts < max_iter
     if np.any(escaped_idx):
         t = np.clip(smooth_values[escaped_idx] / max_iter, 0.0, 1.0)
-        palette_values = np.array(palette.stops, dtype=np.float64)
-        scaled = t * (len(palette_values) - 1)
-        index = np.floor(scaled).astype(int)
-        fraction = scaled - index
-        idx_next = np.clip(index + 1, 0, len(palette_values) - 1)
-        c1 = palette_values[index]
-        c2 = palette_values[idx_next]
-        rgb[escaped_idx] = (c1 + (c2 - c1) * fraction[:, None]).astype(np.uint8)
+        rgb[escaped_idx] = _sample_palette(palette, t)
 
     return rgb
