@@ -1,6 +1,3 @@
-import math
-
-import numpy as np
 import pygame
 
 if __package__ in (None, ""):
@@ -35,6 +32,7 @@ class CollingwoodFractalApp:
         self.menu_width = 220
         self.center_x, self.center_y = DEFAULT_CENTER
         self.scale = DEFAULT_SCALE
+        self.initial_max_iter = max_iter
         self.max_iter = max_iter
         self.palette_names = list(Palette.PRESETS.keys())
         self.fractal_palette_name = "Night"
@@ -70,7 +68,8 @@ class CollingwoodFractalApp:
     def reset(self):
         self.center_x, self.center_y = DEFAULT_CENTER
         self.scale = DEFAULT_SCALE
-        self.max_iter = DEFAULT_ITERATIONS
+        self.max_iter = self.initial_max_iter
+        self.selected_point = None
         self.request_render()
 
     def set_palette(self, name, target="fractal"):
@@ -120,8 +119,8 @@ class CollingwoodFractalApp:
             hud.blit(label, (18, y))
             y += 18
 
-        controls_1 = self.controls_font.render("Click to select point | R reset | +/- iter", True, (180, 220, 255))
-        controls_2 = self.controls_font.render("Zoom here | 1/2 | Q/E | Esc", True, (180, 220, 255))
+        controls_1 = self.controls_font.render("LMB zoom in | RMB zoom out | R reset", True, (180, 220, 255))
+        controls_2 = self.controls_font.render("+/− iter | Q/E palette | Esc", True, (180, 220, 255))
         hud.blit(controls_1, (18, 96))
         hud.blit(controls_2, (18, 112))
 
@@ -331,9 +330,9 @@ class CollingwoodFractalApp:
                 self.set_iterations(20)
             elif key_text == "2":
                 self.set_iterations(220)
-            elif event.key in (pygame.K_q, pygame.K_q) or key_text in ("q", "й"):
+            elif event.key == pygame.K_q or key_text in ("q", "й"):
                 self.cycle_palette("fractal")
-            elif event.key in (pygame.K_e, pygame.K_e) or key_text in ("e", "у"):
+            elif event.key == pygame.K_e or key_text in ("e", "у"):
                 self.cycle_palette("background")
 
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -348,11 +347,19 @@ class CollingwoodFractalApp:
                 return
 
             if event.button == 1:
-                self.set_selected_point(x, y)
-                self.request_render()
+                self.zoom_at(x, y, 2.0)
                 return
 
-            if event.button in (3, 4, 5):
+            if event.button == 3:
+                self.zoom_out(x, y, 2.0)
+                return
+
+            if event.button == 4:
+                self.zoom_at(x, y, 2.0)
+                return
+
+            if event.button == 5:
+                self.zoom_out(x, y, 2.0)
                 return
 
     def run(self):

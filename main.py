@@ -6,12 +6,10 @@ import sys
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-    from laba3grafica.app import CollingwoodFractalApp
     from laba3grafica.config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE
     from laba3grafica.fractal import build_fractal_image
     from laba3grafica.palette import Palette
 else:
-    from .app import CollingwoodFractalApp
     from .config import DEFAULT_CENTER, DEFAULT_ITERATIONS, DEFAULT_SCALE
     from .fractal import build_fractal_image
     from .palette import Palette
@@ -42,6 +40,13 @@ def main():
             f"scale={DEFAULT_SCALE:.5f}, iterations={args.iterations}, shape={image.shape}"
         )
         return 0
+
+    # Import the GUI app only when needed so headless mode works without pygame.
+    if __package__ in (None, ""):
+        sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+        from laba3grafica.app import CollingwoodFractalApp
+    else:
+        from .app import CollingwoodFractalApp
 
     app = CollingwoodFractalApp(max_iter=args.iterations)
     app.run()

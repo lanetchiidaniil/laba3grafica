@@ -85,7 +85,10 @@ def build_fractal_image(width, height, center_x, center_y, scale, max_iter, pale
         if escaped[0].size > 0:
             values = np.sqrt(x[escaped] * x[escaped] + y[escaped] * y[escaped])
             valid = np.isfinite(values) & (values > 1.0)
-            smooth_values[escaped] = np.where(valid, iteration + 1.0 - np.log(np.log(values)) / np.log(2.0), iteration)
+            escaped_smooth = np.full(values.shape, float(iteration), dtype=np.float64)
+            if np.any(valid):
+                escaped_smooth[valid] = iteration + 1.0 - np.log(np.log(values[valid])) / np.log(2.0)
+            smooth_values[escaped] = escaped_smooth
             escape_counts[escaped] = iteration
             active[escaped] = False
 

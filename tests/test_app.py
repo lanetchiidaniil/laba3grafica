@@ -141,7 +141,7 @@ def test_center_resets_zoom_and_center():
     assert app.scale == pytest.approx(DEFAULT_SCALE)
 
 
-def test_click_only_selects_point_without_direct_zoom():
+def test_left_click_directly_zooms_in():
     app = CollingwoodFractalApp(width=1200, height=900, max_iter=220)
 
     before_scale = app.scale
@@ -149,10 +149,8 @@ def test_click_only_selects_point_without_direct_zoom():
 
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=(200, 220), button=1))
 
-    assert app.selected_point == (200, 220)
-    assert app.scale == before_scale
-    assert app.center_x == before_center[0]
-    assert app.center_y == before_center[1]
+    assert app.scale < before_scale
+    assert app.center_x != before_center[0] or app.center_y != before_center[1]
 
 
 def test_auto_zoom_uses_selected_point():
@@ -178,3 +176,34 @@ def test_menu_action_dispatch_uses_button_name():
 
     assert app.scale < before_scale
     assert app.center_x != before_center[0] or app.center_y != before_center[1]
+
+
+def test_left_click_zoom_in_works():
+    app = CollingwoodFractalApp(width=1200, height=900, max_iter=220)
+
+    before_scale = app.scale
+    before_center = app.center_x, app.center_y
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=(200, 220), button=1))
+
+    assert app.scale < before_scale
+    assert app.center_x != before_center[0] or app.center_y != before_center[1]
+
+
+def test_right_click_zoom_out_works():
+    app = CollingwoodFractalApp(width=1200, height=900, max_iter=220)
+
+    before_scale = app.scale
+    before_center = app.center_x, app.center_y
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=(200, 220), button=3))
+
+    assert app.scale > before_scale
+    assert app.center_x != before_center[0] or app.center_y != before_center[1]
+
+
+def test_reset_restores_initial_iteration_count():
+    app = CollingwoodFractalApp(width=1200, height=900, max_iter=220)
+    app.change_iterations(200)
+
+    app.reset()
+
+    assert app.max_iter == 220
